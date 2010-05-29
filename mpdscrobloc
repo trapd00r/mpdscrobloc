@@ -2,19 +2,39 @@
 # mpdscrobloc - local scrobbling for MPD
 use strict;
 use Audio::MPD;
+use Working::Daemon;
+use Getopt::Long;
 
 my $mpd = Audio::MPD->new();
 my $history = "$ENV{HOME}/.mpd/mpd.history";
 
 my $color_support = 256; # 16, 88
-my $stdout = 1; # print to stdout too?
+my $stdout = 1; # print to stdout? 
+my $log    = 1; # log to file?
 
 my @colors;
 for(my $i=0;$i<$color_support;$i++) {
   push(@colors, "\033[38;5;$i".'m');
 }
 
+sub daemonize {
+  my $daemon = Working::Daemon->new;
+  $daemon->name('mpdscrobloc');
+  $daemon->do_action;
+}
+
 my $current = "";
+
+our $opt_daemonize;
+GetOptions(
+  daemon    => \$opt_daemonize,
+);
+
+if($opt_daemonize) {
+  $stdout = undef; # no spam
+  daemonize();
+}
+
 while(1) {
   my $np = $mpd->current;
   my $artist = $np->artist // '';
@@ -25,12 +45,14 @@ while(1) {
   if("$current" ne "$np") {
     $current = $np;
     if($stdout) {
-      printf("$colors[100]%s$colors[101] %s ($colors[102]%s)\033[0m\n",
+      printf("$colors[100]%-25.25s$colors[166] %-25.25s \033[0m$colors[74]%-25.25s\033[0m\n",
         $artist, $title, $album);
     }
-    open(my $fh, '>>', $history) or die "Can not open $history: $!";
-    print $fh "\"@{[scalar(localtime)]}\",\"$artist\",\"$title\"\n";
-    close $fh;
+    if($log) {
+      open(my $fh, '>>', $history) or die "Can not open $history: $!";
+      print $fh "\"@{[scalar(localtime)]}\",\"$artist\",\"$title\"\n";
+      close $fh;
+    }
   }
   sleep 2;
 }
