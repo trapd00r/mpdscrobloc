@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-# mpdscrobloc - local scrobbling for MPD
+our $VERSION  = 0.2;
+
 use strict;
 use Audio::MPD;
 use Working::Daemon;
